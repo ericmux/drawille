@@ -492,12 +492,4 @@ def animation_wrapper(func, palette, *args, **kwds):
             curses.endwin()
 
 
-def init_window():
-    # Initialize curses
-    stdscr = curses.initscr()
-    curses.noecho()
-    curses.cbreak()
-    stdscr.keypad(1)
-
-
 
