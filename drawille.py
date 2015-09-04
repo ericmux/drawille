@@ -22,6 +22,7 @@ from collections import defaultdict
 from time import sleep
 import curses
 
+
 IS_PY3 = version_info[0] == 3
 
 if IS_PY3:
@@ -48,6 +49,17 @@ pixel_map = ((0x01, 0x08),
 # braille unicode characters starts at 0x2800
 braille_char_offset = 0x2800
 
+BLUE = curses.COLOR_BLUE
+RED  = curses.COLOR_RED
+BLACK = curses.COLOR_BLACK
+
+MAX_COLORS = 20
+MAX_PAIRS = 10
+
+DEFAULT_COLORS = {(1000,1000,1000):(curses.COLOR_WHITE,0),
+                  (1000,0,0):(curses.COLOR_RED,1),
+                  (0,1000,0):(curses.COLOR_GREEN,2),
+                  (0,0,1000):(curses.COLOR_BLUE,3)}
 
 # http://stackoverflow.com/questions/566746/how-to-get-console-window-width-in-python
 def getTerminalSize():
@@ -111,6 +123,7 @@ class Canvas(object):
     def clear(self):
         """Remove all pixels from the :class:`Canvas` object."""
         self.chars = defaultdict(intdefaultdict)
+        self.colors = defaultdict(intdefaultdict)
 
 
     def set(self, x, y):
@@ -176,6 +189,15 @@ class Canvas(object):
         for i,c in enumerate(text):
             self.chars[row][col+i] = c
 
+    def set_color(self,x,y,color):
+        """Set color to the given coords.
+
+        :param x: x coordinate of the char to be colored
+        :param y: y coordinate of the char to be colored
+        """
+        col,row = get_pos(x,y)
+        self.colors[row][col] = color
+
 
     def get(self, x, y):
         """Get the state of a pixel. Returns bool.
@@ -200,7 +222,6 @@ class Canvas(object):
 
     def rows(self, min_x=None, min_y=None, max_x=None, max_y=None):
         """Returns a list of the current :class:`Canvas` object lines.
-
         :param min_x: (optional) minimum x coordinate of the canvas
         :param min_y: (optional) minimum y coordinate of the canvas
         :param max_x: (optional) maximum x coordinate of the canvas
@@ -241,7 +262,6 @@ class Canvas(object):
 
     def frame(self, min_x=None, min_y=None, max_x=None, max_y=None):
         """String representation of the current :class:`Canvas` object pixels.
-
         :param min_x: (optional) minimum x coordinate of the canvas
         :param min_y: (optional) minimum y coordinate of the canvas
         :param max_x: (optional) maximum x coordinate of the canvas
@@ -386,8 +406,35 @@ class Turtle(Canvas):
     lt = left
     bk = back
 
+class Palette(object):
+    def __init__(self):
+        #each color has an (r,g,b) value as key, mapped to its (color_idx,pair_idx) tuple.
+        self.colors = dict(DEFAULT_COLORS)
+        self.color_index = 8
+        self.pair_index = len(DEFAULT_COLORS)
 
-def animate(canvas, fn, delay=1./24, *args, **kwargs):
+    def start_colors(self):
+        if not curses.can_change_color():
+            return
+
+        curses.start_color()
+        for (r,g,b) in self.colors.keys():
+            color = (r,g,b)
+            color_index, pair_index = self.colors[color]
+            if pair_index != 0:
+                curses.init_color(color_index,r,g,b)
+                curses.init_pair(pair_index,color_index,curses.COLOR_BLACK)
+
+    def add_color(self,r,g,b):
+        if len(self.colors) > MAX_COLORS:
+            return
+        if (r,g,b) not in self.colors:
+            self.colors[(r,g,b)] = (self.color_index,self.pair_index)
+            self.color_index += 1
+            self.pair_index += 1
+
+
+def animate(canvas, palette, fn, delay=1./24, *args, **kwargs):
     """Animation automatition function
 
     :param canvas: :class:`Canvas` object
@@ -402,16 +449,55 @@ def animate(canvas, fn, delay=1./24, *args, **kwargs):
         locale.setlocale(locale.LC_ALL, "")
 
     def animation(stdscr):
-
         for frame in fn(*args, **kwargs):
-            for x,y in frame:
+            stdscr.erase()
+            for x,y,c in frame:
                 canvas.set(x,y)
+                canvas.set_color(x,y,c)
 
-            f = canvas.frame()
-            stdscr.addstr(0, 0, '{0}\n'.format(f))
+                col,row = get_pos(x,y)
+                color = canvas.colors[row][col]
+
+                color_pair = curses.color_pair(0)
+                if color in palette.colors:
+                    color_pair = curses.color_pair(palette.colors[color][1])
+
+                stdscr.addstr(row,col, unichr(braille_char_offset+canvas.chars[row][col]).encode('utf-8'), color_pair)
+
             stdscr.refresh()
             if delay:
                 sleep(delay)
             canvas.clear()
 
-    curses.wrapper(animation)
+
+    animation_wrapper(animation,palette)
+
+
+def animation_wrapper(func, palette, *args, **kwds):
+    try:
+        stdscr = curses.initscr()
+        curses.noecho()
+        curses.cbreak()
+        stdscr.keypad(1)
+
+        palette.start_colors()
+
+        return func(stdscr, *args, **kwds)
+    finally:
+        # Set everything back to normal
+        if 'stdscr' in locals():
+            stdscr.keypad(0)
+            curses.echo()
+            curses.nocbreak()
+            curses.endwin()
+
+
+def init_window():
+    # Initialize curses
+    stdscr = curses.initscr()
+    curses.noecho()
+    curses.cbreak()
+    stdscr.keypad(1)
+
+
+
