@@ -53,13 +53,21 @@ BLUE = curses.COLOR_BLUE
 RED  = curses.COLOR_RED
 BLACK = curses.COLOR_BLACK
 
-MAX_COLORS = 20
-MAX_PAIRS = 10
+COLOR_BLACK     = curses.COLOR_BLACK
+COLOR_RED       = curses.COLOR_RED
+COLOR_GREEN     = curses.COLOR_GREEN
+COLOR_BLUE      = curses.COLOR_BLUE
+COLOR_YELLOW    = curses.COLOR_YELLOW
+COLOR_CYAN      = curses.COLOR_CYAN
+COLOR_MAGENTA   = curses.COLOR_MAGENTA
+COLOR_WHITE     = curses.COLOR_WHITE
 
-DEFAULT_COLORS = {(1000,1000,1000):(curses.COLOR_WHITE,0),
-                  (1000,0,0):(curses.COLOR_RED,1),
-                  (0,1000,0):(curses.COLOR_GREEN,2),
-                  (0,0,1000):(curses.COLOR_BLUE,3)}
+
+DEFAULT_COLORS = {COLOR_WHITE:0,
+                  COLOR_RED:1,
+                  COLOR_GREEN:2,
+                  COLOR_BLUE:3,
+                  COLOR_YELLOW:4}
 
 # http://stackoverflow.com/questions/566746/how-to-get-console-window-width-in-python
 def getTerminalSize():
@@ -410,7 +418,6 @@ class Palette(object):
     def __init__(self):
         #each color has an (r,g,b) value as key, mapped to its (color_idx,pair_idx) tuple.
         self.colors = dict(DEFAULT_COLORS)
-        self.color_index = 8
         self.pair_index = len(DEFAULT_COLORS)
 
     def start_colors(self):
@@ -418,19 +425,14 @@ class Palette(object):
             return
 
         curses.start_color()
-        for (r,g,b) in self.colors.keys():
-            color = (r,g,b)
-            color_index, pair_index = self.colors[color]
+        for color_index in self.colors.keys():
+            pair_index = self.colors[color_index]
             if pair_index != 0:
-                curses.init_color(color_index,r,g,b)
                 curses.init_pair(pair_index,color_index,curses.COLOR_BLACK)
 
-    def add_color(self,r,g,b):
-        if len(self.colors) > MAX_COLORS:
-            return
-        if (r,g,b) not in self.colors:
-            self.colors[(r,g,b)] = (self.color_index,self.pair_index)
-            self.color_index += 1
+    def add_color(self,color_index):
+        if color_index not in self.colors:
+            self.colors[color_index] = self.pair_index
             self.pair_index += 1
 
 
@@ -460,7 +462,7 @@ def animate(canvas, palette, fn, delay=1./24, *args, **kwargs):
 
                 color_pair = curses.color_pair(0)
                 if color in palette.colors:
-                    color_pair = curses.color_pair(palette.colors[color][1])
+                    color_pair = curses.color_pair(palette.colors[color])
 
                 stdscr.addstr(row,col, unichr(braille_char_offset+canvas.chars[row][col]).encode('utf-8'), color_pair)
 
