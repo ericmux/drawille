@@ -98,6 +98,11 @@ def getTerminalSize():
 
     return int(cr[1]), int(cr[0])
 
+def getTerminalSizeInPixels():
+    tw, th = getTerminalSize()
+    return (2*tw,4*th)
+
+
 
 def normalize(coord):
     coord_type = type(coord)
@@ -428,7 +433,7 @@ class Palette(object):
         for color_index in self.colors.keys():
             pair_index = self.colors[color_index]
             if pair_index != 0:
-                curses.init_pair(pair_index,color_index,curses.COLOR_BLACK)
+                curses.init_pair(pair_index, color_index, curses.COLOR_BLACK)
 
     def add_color(self,color_index):
         if color_index not in self.colors:
@@ -480,7 +485,10 @@ def animation_wrapper(func, palette, *args, **kwds):
         stdscr = curses.initscr()
         curses.noecho()
         curses.cbreak()
+        curses.curs_set(0)
         stdscr.keypad(1)
+        stdscr.scrollok(True)
+        stdscr.idlok(True)
 
         palette.start_colors()
 
@@ -490,6 +498,7 @@ def animation_wrapper(func, palette, *args, **kwds):
         if 'stdscr' in locals():
             stdscr.keypad(0)
             curses.echo()
+            curses.curs_set(1)
             curses.nocbreak()
             curses.endwin()
 
