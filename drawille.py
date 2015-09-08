@@ -62,6 +62,11 @@ COLOR_CYAN      = curses.COLOR_CYAN
 COLOR_MAGENTA   = curses.COLOR_MAGENTA
 COLOR_WHITE     = curses.COLOR_WHITE
 
+KEY_UP      = curses.KEY_UP
+KEY_DOWN    = curses.KEY_DOWN
+KEY_LEFT    = curses.KEY_LEFT
+KEY_RIGHT   = curses.KEY_RIGHT
+
 
 DEFAULT_COLORS = {COLOR_WHITE:0,
                   COLOR_RED:1,
@@ -98,7 +103,7 @@ def getTerminalSize():
 
     return int(cr[1]), int(cr[0])
 
-def getTerminalSizeInPixels():
+def get_terminal_size_in_pixels():
     tw, th = getTerminalSize()
     return (2*tw,4*th)
 
@@ -441,6 +446,13 @@ class Palette(object):
             self.pair_index += 1
 
 
+global stdscr
+
+def handle_input():
+    global stdscr
+    return stdscr.getch()
+
+
 def animate(canvas, palette, fn, delay=1./24, *args, **kwargs):
     """Animation automatition function
 
@@ -476,27 +488,27 @@ def animate(canvas, palette, fn, delay=1./24, *args, **kwargs):
                 sleep(delay)
             canvas.clear()
 
-
     animation_wrapper(animation,palette)
 
 
 def animation_wrapper(func, palette, *args, **kwds):
+    global stdscr
     try:
         stdscr = curses.initscr()
         curses.noecho()
         curses.cbreak()
         curses.curs_set(0)
         stdscr.keypad(1)
-        stdscr.scrollok(True)
-        stdscr.idlok(True)
+        stdscr.nodelay(True)
 
         palette.start_colors()
 
         return func(stdscr, *args, **kwds)
     finally:
         # Set everything back to normal
-        if 'stdscr' in locals():
+        if 'stdscr' in locals() or globals():
             stdscr.keypad(0)
+            stdscr.nodelay(False)
             curses.echo()
             curses.curs_set(1)
             curses.nocbreak()
