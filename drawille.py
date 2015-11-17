@@ -15,6 +15,7 @@
 #
 # (C) 2014- by Adam Tauber, <asciimoo@gmail.com>
 
+from graphics_utils import normalize, get_pos, intdefaultdict, DEFAULT_COLORS
 import math
 import os
 from sys import version_info
@@ -48,85 +49,6 @@ pixel_map = ((0x01, 0x08),
 
 # braille unicode characters starts at 0x2800
 braille_char_offset = 0x2800
-
-BLUE = curses.COLOR_BLUE
-RED  = curses.COLOR_RED
-BLACK = curses.COLOR_BLACK
-
-COLOR_BLACK     = curses.COLOR_BLACK
-COLOR_RED       = curses.COLOR_RED
-COLOR_GREEN     = curses.COLOR_GREEN
-COLOR_BLUE      = curses.COLOR_BLUE
-COLOR_YELLOW    = curses.COLOR_YELLOW
-COLOR_CYAN      = curses.COLOR_CYAN
-COLOR_MAGENTA   = curses.COLOR_MAGENTA
-COLOR_WHITE     = curses.COLOR_WHITE
-
-KEY_UP      = curses.KEY_UP
-KEY_DOWN    = curses.KEY_DOWN
-KEY_LEFT    = curses.KEY_LEFT
-KEY_RIGHT   = curses.KEY_RIGHT
-
-
-DEFAULT_COLORS = {COLOR_WHITE:0,
-                  COLOR_RED:1,
-                  COLOR_GREEN:2,
-                  COLOR_BLUE:3,
-                  COLOR_YELLOW:4}
-
-# http://stackoverflow.com/questions/566746/how-to-get-console-window-width-in-python
-def getTerminalSize():
-    """Returns terminal width, height
-    """
-    env = os.environ
-
-    def ioctl_GWINSZ(fd):
-        try:
-            import fcntl, termios, struct
-            cr = struct.unpack('hh', fcntl.ioctl(fd, termios.TIOCGWINSZ, '1234'))
-        except:
-            return
-        return cr
-
-    cr = ioctl_GWINSZ(0) or ioctl_GWINSZ(1) or ioctl_GWINSZ(2)
-
-    if not cr:
-        try:
-            fd = os.open(os.ctermid(), os.O_RDONLY)
-            cr = ioctl_GWINSZ(fd)
-            os.close(fd)
-        except:
-            pass
-
-    if not cr:
-        cr = (env.get('LINES', 25), env.get('COLUMNS', 80))
-
-    return int(cr[1]), int(cr[0])
-
-def get_terminal_size_in_pixels():
-    tw, th = getTerminalSize()
-    return (2*tw,4*th)
-
-
-
-def normalize(coord):
-    coord_type = type(coord)
-
-    if coord_type == int:
-        return coord
-    elif coord_type == float:
-        return int(round(coord))
-    else:
-        raise TypeError("Unsupported coordinate type <{0}>".format(type(coord)))
-
-
-def intdefaultdict():
-    return defaultdict(int)
-
-
-def get_pos(x, y):
-    """Convert x, y to cols, rows"""
-    return normalize(x) // 2, normalize(y) // 4
 
 
 class Canvas(object):
@@ -340,89 +262,6 @@ def polygon(center_x=0, center_y=0, sides=4, radius=4):
         for x, y in line(x1, y1, x2, y2):
             yield x, y
 
-
-class Turtle(Canvas):
-    """Turtle graphics interface
-    http://en.wikipedia.org/wiki/Turtle_graphics
-    """
-
-    def __init__(self, pos_x=0, pos_y=0):
-        self.pos_x = pos_x
-        self.pos_y = pos_y
-        self.rotation = 0
-        self.brush_on = True
-        super(Turtle, self).__init__()
-
-
-    def up(self):
-        """Pull the brush up."""
-        self.brush_on = False
-
-
-    def down(self):
-        """Push the brush down."""
-        self.brush_on = True
-
-
-    def forward(self, step):
-        """Move the turtle forward.
-
-        :param step: Integer. Distance to move forward.
-        """
-        x = self.pos_x + math.cos(math.radians(self.rotation)) * step
-        y = self.pos_y + math.sin(math.radians(self.rotation)) * step
-        prev_brush_state = self.brush_on
-        self.brush_on = True
-        self.move(x, y)
-        self.brush_on = prev_brush_state
-
-
-    def move(self, x, y):
-        """Move the turtle to a coordinate.
-
-        :param x: x coordinate
-        :param y: y coordinate
-        """
-        if self.brush_on:
-            for lx, ly in line(self.pos_x, self.pos_y, x, y):
-                self.set(lx, ly)
-
-        self.pos_x = x
-        self.pos_y = y
-
-
-    def right(self, angle):
-        """Rotate the turtle (positive direction).
-
-        :param angle: Integer. Rotation angle in degrees.
-        """
-        self.rotation += angle
-
-
-    def left(self, angle):
-        """Rotate the turtle (negative direction).
-
-        :param angle: Integer. Rotation angle in degrees.
-        """
-        self.rotation -= angle
-
-
-    def back(self, step):
-        """Move the turtle backwards.
-
-        :param step: Integer. Distance to move backwards.
-        """
-        self.forward(-step)
-
-
-    # aliases
-    pu = up
-    pd = down
-    fd = forward
-    mv = move
-    rt = right
-    lt = left
-    bk = back
 
 class Palette(object):
     def __init__(self):
